@@ -9,8 +9,12 @@ const app = express();
 export const prisma = new PrismaClient();
 
 app.use(cors({
-  origin: '*', // Permitir tudo temporariamente para facilitar os testes com Vercel + Túnel
-  credentials: true
+  origin: (origin, callback) => {
+    // Permitir qualquer origem para facilitar o desenvolvimento com Túnel + Vercel
+    callback(null, true);
+  },
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder']
 }));
 app.use(express.json());
 
