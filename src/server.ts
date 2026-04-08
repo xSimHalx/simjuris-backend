@@ -16,6 +16,13 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder']
 }));
+
+// Logger para depuração de requisições
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 app.use(express.json());
 
 // Registrar rotas
