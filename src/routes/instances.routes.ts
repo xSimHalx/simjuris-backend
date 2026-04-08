@@ -36,7 +36,7 @@ router.get('/', async (req, res): Promise<any> => {
         return res.json({ status: 'OFFLINE', instanceName });
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       return res.json({ 
         status: data?.instance?.state || 'OFFLINE', 
         instanceName 
@@ -91,7 +91,7 @@ router.post('/connect', async (req, res): Promise<any> => {
       headers: getEvolutionHeaders()
     });
 
-    const qrData = await qrResponse.json();
+    const qrData = await qrResponse.json() as any;
 
     if (qrData.base64) {
       return res.json({ qrcode: qrData.base64, instanceName });
