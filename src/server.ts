@@ -8,19 +8,8 @@ dotenv.config();
 const app = express();
 export const prisma = new PrismaClient();
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL || '*',
-  'http://localhost:5173', // Desenvolvimento local
-];
-
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', // Permitir tudo temporariamente para facilitar os testes com Vercel + Túnel
   credentials: true
 }));
 app.use(express.json());
