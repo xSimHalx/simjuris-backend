@@ -29,7 +29,7 @@ export const buildMessage = (
   nomeCliente: string,
   titulo: string,
   dataFormatada: string,
-  contexto: 'confirmacao' | 'lembrete_d2' | 'lembrete_d0',
+  contexto: 'confirmacao' | 'lembrete_d2' | 'lembrete_d0' | 'avaliacao',
   tenant?: any 
 ): string => {
   const { parseTemplate } = require('../utils/template');
@@ -87,7 +87,13 @@ export const buildMessage = (
   }
 
   // lembrete_d0 (HOJE)
-  return `🔥 *É Hoje! Lembrete Urgente*\n\nOlá, *${nomeCliente}*!\n\nLembramos que seu compromisso *"${titulo}"* está marcado para hoje, às *${horaStr}*${mapsLink}.\n\nSucesso e conte com nossa equipe para garantir seus direitos! 📋🏛️${assinatura}`;
+  if (contexto === 'lembrete_d0') {
+    return `🔥 *É Hoje! Lembrete Urgente*\n\nOlá, *${nomeCliente}*!\n\nLembramos que seu compromisso *"${titulo}"* está marcado para hoje, às *${horaStr}*${mapsLink}.\n\nSucesso e conte com nossa equipe para garantir seus direitos! 📋🏛️${assinatura}`;
+  }
+
+  // ── Contexto: AVALIAÇÃO (Pós-Venda / Final de Caso) ─────────────────────────
+  const linkMaps = tenant?.google_maps_link || 'https://google.com/maps';
+  return `Olá, *${nomeCliente}*! ⚖️🌟\n\nFoi um prazer representar seus interesses. Como esta é nossa última etapa, gostaríamos de pedir um pequeno favor: você poderia avaliar nosso atendimento no Google?\n\nSua opinião é fundamental para que o escritório *${variables.escritorio}* continue entregando excelência. Leva menos de 1 minuto! ⭐\n\n🔗 *Avalie aqui:* ${linkMaps}\n\nMuito obrigado pela confiança!\n*Equipe ${variables.escritorio}* 🏛️`;
 };
 
 // ─── CRON: Roda às 08:00 (horário de Brasília) ───────────────────────────────

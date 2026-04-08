@@ -305,4 +305,60 @@ router.post('/test-message', async (req, res): Promise<any> => {
   }
 });
 
+// POST: Gatilho de Auditoria e Teste de Automação Avançada
+router.post('/debug-trigger', async (req, res): Promise<any> => {
+  try {
+    const { tenantId } = req.user!;
+    const { tipo, contexto, telefone } = req.body;
+    const { evolutionQueue } = require('../queue/evolution.queue');
+    const { buildMessage } = require('../jobs/notification.job');
+
+    if (!telefone) return res.status(400).json({ error: 'Número de telefone é obrigatório.' });
+
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant?.evolution_instance_id) {
+       return res.status(400).json({ error: 'WhatsApp não conectado na Gestão de Instâncias.' });
+    }
+
+    // Normalização do número
+    let numeroLimpo = telefone.replace(/\D/g, '');
+    if (!numeroLimpo.startsWith('55')) numeroLimpo = `55${numeroLimpo}`;
+
+    // Simula uma data para amanhã para o texto fazer sentido
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    amanha.setHours(14, 30, 0, 0);
+
+    const dataSimulada = new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo'
+    }).format(amanha);
+
+    const mensagem = buildMessage(
+      tipo || 'REUNIAO',
+      'Cliente de Teste',
+      'Compromisso Simulado (Sandbox)',
+      dataSimulada,
+      contexto || 'confirmacao',
+      tenant
+    );
+
+    const fullMessage = `🧪 *SIMULAÇÃO SIMJURIS*\n\n${mensagem}`;
+
+    await evolutionQueue.add('send-debug-test', {
+      numero_destino: numeroLimpo,
+      conteudo_mensagem: fullMessage,
+      evolution_instance_id: tenant.evolution_instance_id
+    });
+
+    return res.json({ 
+      success: true, 
+      message: 'Simulação enviada com todos os dados dinâmicos (Maps, Nome, etc)!', 
+      preview: fullMessage 
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao processar simulação de automação.' });
+  }
+});
+
 export default router;
