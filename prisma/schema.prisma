@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Tenant {
+  id                    String   @id @default(uuid())
+  nome_fantasia         String
+  documento_cnpj_cpf    String   @unique
+  evolution_instance_id String?  @unique
+  status_assinatura     String   @default("ATIVO") // ATIVO, INADIMPLENTE, CANCELADO
+  google_maps_link      String?
+  
+  // Customização de Mensagens (Templates)
+  template_confirmacao_prazo     String?
+  template_confirmacao_audiencia String?
+  template_confirmacao_reuniao   String?
+  template_lembrete_d2           String?
+  template_lembrete_d0           String?
+
+  created_at            DateTime @default(now())
+
+  users             User[]
+  clients           Client[]
+  events            Event[]
+  notification_logs NotificationLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id                     String    @id @default(uuid())
+  tenant_id              String
+  nome                   String
+  email                  String    @unique
+  senha_hash             String
+  telefone               String?
+  role                   String    @default("ASSISTENTE") // ADMIN, ASSISTENTE
+  reset_password_code    String?
+  reset_password_expires DateTime?
+  created_at             DateTime  @default(now())
+
+  tenant Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@map("users")
+}
+
+model Client {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  nome_completo String
+  documento     String?
+  whatsapp      String
+  notas_internas String?
+  created_at    DateTime @default(now())
+
+  tenant Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@unique([tenant_id, whatsapp])
+  @@unique([tenant_id, documento])
+  @@map("clients")
+}
+
+model Event {
+  id                  String   @id @default(uuid())
+  tenant_id           String
+  client_id           String?
+  user_id_responsavel String
+  titulo              String
+  descricao           String?
+  numero_processo     String?
+  local_link          String?
+  tipo_evento         String   @default("PRAZO") // PRAZO, AUDIENCIA, REUNIAO
+  data_hora_evento    DateTime
+  status              String   @default("AGENDADO") // AGENDADO, CONCLUIDO, CANCELADO
+  created_at          DateTime @default(now())
+
+  tenant            Tenant             @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  client            Client?            @relation(fields: [client_id], references: [id], onDelete: SetNull)
+  user              User               @relation(fields: [user_id_responsavel], references: [id], onDelete: Restrict)
+  notification_rules NotificationRule[]
+  notification_logs  NotificationLog[]
+
+  @@map("events")
+}
+
+model NotificationRule {
+  id                      String    @id @default(uuid())
+  event_id                String
+  dias_antecedencia       Int       @default(1)
+  destinatario            String    @default("AMBOS") // CLIENTE, ADVOGADO, AMBOS
+  status                  String    @default("PENDENTE") // PENDENTE, EXECUTADA, FALHA
+  data_programada_disparo DateTime
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@map("notification_rules")
+}
+
+model NotificationLog {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  event_id          String
+  numero_destino    String
+  conteudo_mensagem String
+  status_envio      String   @default("ENVIADO") // ENVIADO, LIDO, ERRO
+  data_envio        DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  event  Event  @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
+}

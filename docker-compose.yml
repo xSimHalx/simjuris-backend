@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # 1. Banco de Dados PostgreSQL (Isolado SimJuris)
+  postgres:
+    image: postgres:15-alpine
+    container_name: simjuris_postgres
+    restart: always
+    networks:
+      - simjuris_network
+    environment:
+      POSTGRES_USER: legalmemo
+      POSTGRES_PASSWORD: legalmemo_password
+      POSTGRES_DB: legalmemo_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - simjuris_pg_data:/var/lib/postgresql/data
+
+  # 2. Redis (Cache Isolado SimJuris)
+  redis:
+    image: redis:7-alpine
+    container_name: simjuris_redis
+    restart: always
+    networks:
+      - simjuris_network
+    ports:
+      - "6379:6379"
+    volumes:
+      - simjuris_redis_data:/data
+
+  # 3. Evolution API v2.3.7 (Porta 1515)
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: simjuris_evolution
+    restart: always
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - simjuris_network
+    ports:
+      - "1515:8080" # Porta externa 1515 mapeada para a 8080 interna
+    environment:
+      - SERVER_URL=http://localhost:1515
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=ChaveSecretaEvoSaaS2026!
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://simjuris_redis:6379
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://legalmemo:legalmemo_password@simjuris_postgres:5432/legalmemo_db?schema=evolution_api
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_DATA_BAILEYS_CHATS=true
+      - DATABASE_SAVE_DATA_BAILEYS_CONTACTS=true
+      - WA_VERSION=2.3000.1015901307
+      - DEL_INSTANCE=false
+    volumes:
+      - simjuris_evolution_instances:/evolution/instances
+      - simjuris_evolution_store:/evolution/store
+
+  # 4. SimJuris Backend (API)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simjuris_backend
+    restart: always
+    networks:
+      - simjuris_network
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://legalmemo:legalmemo_password@simjuris_postgres:5432/legalmemo_db?schema=public
+      - REDIS_URL=redis://simjuris_redis:6379
+      - EVOLUTION_API_URL=http://simjuris_evolution:8080
+    ports:
+      - "3333:3333"
+
+  # 5. Nginx Proxy Manager (Ponteiro de Domínios)
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: simjuris_npm
+    restart: always
+    networks:
+      - simjuris_network
+    ports:
+      - "8080:80"
+      - "8443:443"
+      - "81:81"
+    volumes:
+      - ./infra/npm/data:/data
+      - ./infra/npm/letsencrypt:/etc/letsencrypt
+
+networks:
+  simjuris_network:
+    name: simjuris_network
+    driver: bridge
+
+volumes:
+  simjuris_pg_data:
+  simjuris_redis_data:
+  simjuris_evolution_instances:
+  simjuris_evolution_store:
