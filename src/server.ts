@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Registrar rotas
 import authRoutes from './routes/auth.routes';

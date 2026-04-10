@@ -20,6 +20,8 @@ router.get('/', async (req, res): Promise<any> => {
 
 // Atualizar dados do escritório
 router.patch('/', async (req, res): Promise<any> => {
+  console.log('--- ATUALIZAÇÃO TENANT RECEBIDA ---');
+  console.log('Payload:', JSON.stringify(req.body, null, 2));
   try {
     const { tenantId } = req.user!;
     const { 

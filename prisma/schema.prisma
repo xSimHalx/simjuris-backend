@@ -20,6 +20,13 @@ model Tenant {
   // Configurações Globais de Fluxos de Trabalho
   config_fluxos Json? // Array de { id, nome, tipos: string[], sub_label: string, sub_items: string[] }
 
+  // Templates de Notificação Customizados
+  template_confirmacao_prazo     String?
+  template_confirmacao_audiencia String?
+  template_confirmacao_reuniao   String?
+  template_lembrete_d2           String?
+  template_lembrete_d0           String?
+
   created_at            DateTime @default(now())
 
   users             User[]
