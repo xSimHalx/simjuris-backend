@@ -11,8 +11,27 @@ const app = express();
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
 
+// Diagnóstico de Pool
+pool.on('error', (err) => {
+  console.error('❌ ERRO CRÍTICO NO POOL POSTGRES:', err);
+});
+
+// Teste de Conexão Inicial
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('❌ FALHA AO CONECTAR NO BANCO:', err.stack);
+  }
+  client.query('SELECT NOW()', (err, result) => {
+    release();
+    if (err) {
+      return console.error('❌ ERRO NA QUERY DE TESTE:', err.stack);
+    }
+    console.log('✅ BANCO DE DADOS CONECTADO COM SUCESSO (Pool)');
+  });
+});
+
+const adapter = new PrismaPg(pool);
 export const prisma = new PrismaClient({ adapter });
 
 app.use(cors({
