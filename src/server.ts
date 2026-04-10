@@ -19,8 +19,8 @@ pool.on('error', (err) => {
 
 // Teste de Conexão Inicial
 pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('❌ FALHA AO CONECTAR NO BANCO:', err.stack);
+  if (err || !client) {
+    return console.error('❌ FALHA AO CONECTAR NO BANCO:', err?.stack || 'Client indefinido');
   }
   client.query('SELECT NOW()', (err, result) => {
     release();
