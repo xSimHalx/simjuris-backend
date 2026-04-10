@@ -29,7 +29,9 @@ router.patch('/', async (req, res): Promise<any> => {
       template_confirmacao_audiencia,
       template_confirmacao_reuniao,
       template_lembrete_d2,
-      template_lembrete_d0
+      template_lembrete_d0,
+      config_fluxos,
+      hide_error_alerts
     } = req.body;
 
     const updatedTenant = await prisma.tenant.update({
@@ -41,7 +43,9 @@ router.patch('/', async (req, res): Promise<any> => {
         template_confirmacao_audiencia,
         template_confirmacao_reuniao,
         template_lembrete_d2,
-        template_lembrete_d0
+        template_lembrete_d0,
+        config_fluxos,
+        hide_error_alerts
       }
     });
 

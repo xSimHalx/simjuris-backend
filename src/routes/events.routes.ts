@@ -15,7 +15,11 @@ router.post('/', async (req, res): Promise<any> => {
       descricao: z.string().optional(),
       numero_processo: z.string().optional(),
       local_link: z.string().optional(),
+      omit_location: z.boolean().default(false),
       tipo_evento: z.string().default('PRAZO'),
+      natureza: z.string().default('JUDICIAL'),
+      fase_administrativa: z.string().nullable().optional(),
+      instancia_judicial: z.string().nullable().optional(),
       data_hora_evento: z.string().datetime({ message: 'Data inválida. Use o formato ISO (ex: 2026-05-15T15:00:00Z)' }),
       antecedencia_aviso_horas: z.number().default(24) // Novo formato recebido do front
     });
@@ -25,7 +29,11 @@ router.post('/', async (req, res): Promise<any> => {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { titulo, client_id, descricao, numero_processo, local_link, tipo_evento, data_hora_evento, antecedencia_aviso_horas } = parsed.data;
+    const { 
+      titulo, client_id, descricao, numero_processo, local_link, omit_location, 
+      tipo_evento, natureza, fase_administrativa, instancia_judicial, 
+      data_hora_evento, antecedencia_aviso_horas 
+    } = parsed.data;
     const { tenantId, userId } = req.user!;
 
     // Motor de Agendamento: Calcular a Data exata em que a mensagem do WhatsApp deve ser enviada
@@ -41,17 +49,36 @@ router.post('/', async (req, res): Promise<any> => {
         descricao,
         numero_processo,
         local_link,
+        omit_location,
         tipo_evento,
+        natureza,
+        fase_administrativa,
+        instancia_judicial,
         client_id,
         data_hora_evento: eventDate,
         // O status "AGENDADO" será salvo automaticamente pelo default do Prisma
         // Prisma executa uma inserção Atômica, criando o Evento E já atrelando a ele uma Regra de Notificação
+        // Motor de Agendamento Elite: Criar 2 regras (D-1 e H-1)
         notification_rules: {
-          create: {
-            dias_antecedencia: antecedencia_aviso_horas >= 24 ? Math.floor(antecedencia_aviso_horas / 24) : 0,
-            data_programada_disparo: triggerDate,
-            destinatario: "AMBOS" // Informa cliente e advogado
-          }
+          create: [
+            {
+              // Regra 1: Lembrete de Véspera (D-1 às 08:00)
+              dias_antecedencia: 1,
+              data_programada_disparo: (() => {
+                const trigger = new Date(eventDate);
+                trigger.setDate(trigger.getDate() - 1);
+                trigger.setHours(8, 0, 0, 0);
+                return trigger > new Date() ? trigger : new Date(); // Garante objeto Date válido
+              })(),
+              destinatario: "AMBOS"
+            },
+            {
+              // Regra 2: Lembrete de Proximidade (H-1)
+              dias_antecedencia: 0,
+              data_programada_disparo: new Date(eventDate.getTime() - (1 * 60 * 60 * 1000)),
+              destinatario: "AMBOS"
+            }
+          ]
         }
       },
       include: {
@@ -123,10 +150,10 @@ router.patch('/:id/status', async (req, res): Promise<any> => {
 
     // 3. Opcional: Enviar mensagem de feedback/agradecimento ao concluir
     if (status === 'CONCLUIDO' && sendFeedback && event.client?.whatsapp) {
-      const gMaps = event.tenant.google_maps_link || '';
-      const msg = `✅ *Compromisso Finalizado!*\n\nOlá, *${event.client.nome_completo}*!\n\nInformamos que o compromisso *"${event.titulo}"* foi concluído com sucesso em nosso sistema.\n\nSua opinião é fundamental para nós! Se puder, avalie nosso atendimento no Google:\n🔗 ${gMaps || 'https://maps.google.com'}\n\nAgradecemos a confiança! ✨`;
+      const feedbackLink = event.local_link || event.tenant.google_maps_link || 'https://maps.google.com';
+      const msg = `✅ *Compromisso Finalizado!*\n\nOlá, *${event.client.nome_completo}*! ⚖️⭐\n\nFoi um prazer representar seus interesses no compromisso *"${event.titulo}"*.\n\nSua opinião é fundamental para nós! Você poderia avaliar nosso atendimento no link abaixo? Leva menos de 30 segundos! 🙏\n\n🔗 *Avalie aqui:* ${feedbackLink}\n\nMuito obrigado pela confiança!\n*Equipe ${event.tenant.nome_fantasia || 'SimJuris'}* 🏛️`;
 
-      await evolutionQueue.add('send-feedback', {
+      await evolutionQueue.add('send-message-client', {
         numero_destino: event.client.whatsapp,
         conteudo_mensagem: msg,
         evolution_instance_id: event.tenant.evolution_instance_id,

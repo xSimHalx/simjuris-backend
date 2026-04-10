@@ -210,7 +210,16 @@ router.post('/send-now', async (req, res): Promise<any> => {
     }).format(event.data_hora_evento);
 
     // ── 1. Confirmação imediata (sempre enviada) ──────────────────────────────
-    const msgConfirmacao = buildMessage(event.tipo_evento, event.client.nome_completo, event.titulo, dataFormatada, 'confirmacao');
+    const msgConfirmacao = buildMessage(
+      event.tipo_evento, 
+      event.client.nome_completo, 
+      event.titulo, 
+      dataFormatada, 
+      'confirmacao', 
+      event.tenant,
+      event.local_link,
+      event.omit_location // Flag de privacidade
+    );
 
     await evolutionQueue.add('send-confirmation', {
       numero_destino: event.client.whatsapp,
@@ -309,20 +318,23 @@ router.post('/test-message', async (req, res): Promise<any> => {
 router.post('/debug-trigger', async (req, res): Promise<any> => {
   try {
     const { tenantId } = req.user!;
-    const { tipo, contexto, telefone } = req.body;
+    const { tipo, contexto, telefone, previewOnly } = req.body;
     const { evolutionQueue } = require('../queue/evolution.queue');
     const { buildMessage } = require('../jobs/notification.job');
 
-    if (!telefone) return res.status(400).json({ error: 'Número de telefone é obrigatório.' });
+    if (!telefone && !previewOnly) return res.status(400).json({ error: 'Número de telefone é obrigatório para envio.' });
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant?.evolution_instance_id) {
        return res.status(400).json({ error: 'WhatsApp não conectado na Gestão de Instâncias.' });
     }
 
-    // Normalização do número
-    let numeroLimpo = telefone.replace(/\D/g, '');
-    if (!numeroLimpo.startsWith('55')) numeroLimpo = `55${numeroLimpo}`;
+    // Normalização do número se for enviado
+    let numeroLimpo = '';
+    if (telefone) {
+      numeroLimpo = telefone.replace(/\D/g, '');
+      if (!numeroLimpo.startsWith('55')) numeroLimpo = `55${numeroLimpo}`;
+    }
 
     // Simula uma data para amanhã para o texto fazer sentido
     const amanha = new Date();
@@ -339,20 +351,27 @@ router.post('/debug-trigger', async (req, res): Promise<any> => {
       'Compromisso Simulado (Sandbox)',
       dataSimulada,
       contexto || 'confirmacao',
-      tenant
+      tenant,
+      null, // Sem localização fixa no teste geral
+      false // Sem omissão fixa no teste geral
     );
 
     const fullMessage = `🧪 *SIMULAÇÃO SIMJURIS*\n\n${mensagem}`;
 
-    await evolutionQueue.add('send-debug-test', {
-      numero_destino: numeroLimpo,
-      conteudo_mensagem: fullMessage,
-      evolution_instance_id: tenant.evolution_instance_id
-    });
+    // Só envia se NÃO for apenas prévia
+    if (!previewOnly) {
+      if (!numeroLimpo) return res.status(400).json({ error: 'Telefone é necessário para envio.' });
+      
+      await evolutionQueue.add('send-debug-test', {
+        numero_destino: numeroLimpo,
+        conteudo_mensagem: fullMessage,
+        evolution_instance_id: tenant.evolution_instance_id
+      });
+    }
 
     return res.json({ 
       success: true, 
-      message: 'Simulação enviada com todos os dados dinâmicos (Maps, Nome, etc)!', 
+      message: previewOnly ? 'Prévia gerada com sucesso!' : 'Simulação enviada com todos os dados dinâmicos!', 
       preview: fullMessage 
     });
   } catch (error) {

@@ -15,7 +15,27 @@ async function main() {
     create: {
       nome_fantasia: 'Escritório Teste & Advogados',
       documento_cnpj_cpf: tenantCNPJ,
-      evolution_instance_id: 'instancia_teste_01'
+      evolution_instance_id: 'instancia_teste_01',
+      config_fluxos: [
+        {
+          id: 'judicial_01',
+          nome: 'JUDICIAL',
+          tipos: [
+            { nome: "AUDIÊNCIA", sub_label: "Tipo de Audiência", sub_items: ["Instrução", "Conciliação", "Una"] },
+            { nome: "PRAZO", sub_label: "Instância", sub_items: ["1ª Instância", "2ª Instância", "Tribunais Superiores"] },
+            { nome: "CARTÓRIO", sub_label: "Finalidade", sub_items: ["Protocolo", "Assinatura", "Retirada"] }
+          ]
+        },
+        {
+          id: 'administrativo_01',
+          nome: 'ADMINISTRATIVO',
+          tipos: [
+            { nome: "PERÍCIA", sub_label: "Fase da Perícia", sub_items: ["Médica", "Social", "Técnica"] },
+            { nome: "RECURSO", sub_label: "Status Administrativo", sub_items: ["Protocolado", "Aguardando", "Negado"] },
+            { nome: "REUNIÃO", sub_label: "Pauta", sub_items: ["Fechamento", "Pós-Perícia", "Entrevista"] }
+          ]
+        }
+      ]
     }
   });
   

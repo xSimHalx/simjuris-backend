@@ -12,6 +12,7 @@ router.get('/', async (req, res): Promise<any> => {
     const clients = await prisma.client.findMany({
       where: { tenant_id: tenantId },
       include: {
+        tenant: true,
         events: {
           orderBy: { data_hora_evento: 'asc' },
           include: { 
@@ -64,7 +65,8 @@ router.post('/', async (req, res): Promise<any> => {
         nome_completo,
         whatsapp,
         documento: documento || '00000000000'
-      }
+      },
+      include: { tenant: true, events: true }
     });
 
     return res.json(client);
@@ -104,7 +106,8 @@ router.patch('/:id', async (req, res): Promise<any> => {
 
     const client = await prisma.client.update({
       where: { id, tenant_id: tenantId },
-      data: { nome_completo, whatsapp, documento, notas_internas }
+      data: { nome_completo, whatsapp, documento, notas_internas },
+      include: { tenant: true, events: true }
     });
 
     return res.json(client);

@@ -15,13 +15,10 @@ model Tenant {
   evolution_instance_id String?  @unique
   status_assinatura     String   @default("ATIVO") // ATIVO, INADIMPLENTE, CANCELADO
   google_maps_link      String?
+  hide_error_alerts     Boolean  @default(false) // Preferência de UI Elite
   
-  // Customização de Mensagens (Templates)
-  template_confirmacao_prazo     String?
-  template_confirmacao_audiencia String?
-  template_confirmacao_reuniao   String?
-  template_lembrete_d2           String?
-  template_lembrete_d0           String?
+  // Configurações Globais de Fluxos de Trabalho
+  config_fluxos Json? // Array de { id, nome, tipos: string[], sub_label: string, sub_items: string[] }
 
   created_at            DateTime @default(now())
 
@@ -77,9 +74,13 @@ model Event {
   descricao           String?
   numero_processo     String?
   local_link          String?
-  tipo_evento         String   @default("PRAZO") // PRAZO, AUDIENCIA, REUNIAO
+  tipo_evento         String   @default("PRAZO") // PRAZO, AUDIENCIA, REUNIAO, PERICIA, CARTORIO, TESTEMUNHAS
+  natureza            String   @default("JUDICIAL") // JUDICIAL, ADMINISTRATIVO
+  fase_administrativa String?  // AGUARDANDO_PERICIA, NEGADO, ENCERRADO, etc.
+  instancia_judicial  String?  @default("1_INSTANCIA") // 1_INSTANCIA, 2_INSTANCIA, TRIBUNAIS_SUPERIORES
   data_hora_evento    DateTime
   status              String   @default("AGENDADO") // AGENDADO, CONCLUIDO, CANCELADO
+  omit_location       Boolean  @default(false)      // Se true, não envia links de mapa
   created_at          DateTime @default(now())
 
   tenant            Tenant             @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
